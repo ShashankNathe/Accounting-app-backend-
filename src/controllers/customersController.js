@@ -4,10 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 
 export const getCustomers = asyncHandler(async (req, res) => {
   const data = await turso.execute("SELECT * FROM customers");
-  console.log(data);
   if (data.rows.length === 0) {
-    res.status(404);
-    throw new Error("No customers found");
+    res.status(404).json({ status: "error", error: "No customers found" });
   }
   res.json({ status: "success", data: data.rows });
 });
@@ -15,8 +13,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
 export const getCustomerById = asyncHandler(async (req, res) => {
   const data = await turso.execute(`SELECT * FROM customers WHERE id = '${req.params.id}'`);
   if (data.rows.length === 0) {
-    res.status(404);
-    throw new Error("Customer not found");
+    res.status(404).json({ status: "error", error: "Customer not found" });
   }
   res.json({ status: "success", data: data.rows[0] });
 });
@@ -60,6 +57,19 @@ export const updateCustomer = asyncHandler(async (req, res) => {
     await turso.execute(query);
 
     res.json({ status: "success", message: "Customer updated" });
+  } catch (error) {
+    res.status(400).json({ status: "error", error: error.message });
+  }
+});
+
+export const deleteCustomer = asyncHandler(async (req, res) => {
+  if (!req.params.id) {
+    res.status(400).json({ status: "error", error: "Please provide customer id" });
+  }
+  try {
+    const query = `DELETE FROM customers WHERE id = '${req.params.id}'`;
+    await turso.execute(query);
+    res.json({ status: "success", message: "Customer deleted" });
   } catch (error) {
     res.status(400).json({ status: "error", error: error.message });
   }
