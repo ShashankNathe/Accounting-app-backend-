@@ -12,7 +12,7 @@ import purchasesRoutes from "./routes/purchaseRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 dotenv.config();
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 const app = express();
 app.use(cors());
 app.use(cookieParser());
@@ -34,5 +34,5 @@ app.get("/", (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 app.listen(port, () => {
-  console.log("Server is running on http://localhost:3000");
+  console.log(`Server is running on http://localhost:${port}`);
 });
