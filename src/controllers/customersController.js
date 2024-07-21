@@ -74,3 +74,46 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
     res.status(400).json({ status: "error", error: error.message });
   }
 });
+
+export const getCustomerSales = asyncHandler(async (req, res) => {
+  const data = await turso.execute(
+    `SELECT s.id AS sale_id, s.customer_id, s.total_amount, s.date AS sale_date, 
+            si.id AS item_id, si.product_id, si.quantity, si.price
+       FROM sales s
+       LEFT JOIN sales_items si ON s.id = si.sale_id
+      WHERE s.customer_id = '${req.params.id}'`
+  );
+
+  if (data.rows.length === 0) {
+    res.status(404).json({ status: "error", error: "No sales found for this customer" });
+  }
+  const transformData = (rows) => {
+    const salesMap = {};
+
+    rows.forEach((row) => {
+      if (!salesMap[row.sale_id]) {
+        salesMap[row.sale_id] = {
+          id: row.sale_id,
+          customer_id: row.customer_id,
+          total_amount: row.total_amount,
+          date: row.sale_date,
+          items: [],
+        };
+      }
+      if (row.item_id) {
+        salesMap[row.sale_id].items.push({
+          id: row.item_id,
+          product_id: row.product_id,
+          quantity: row.quantity,
+          price: row.price,
+        });
+      }
+    });
+
+    return Object.values(salesMap);
+  };
+
+  const formattedData = transformData(data.rows);
+
+  res.json({ status: "success", data: formattedData });
+});

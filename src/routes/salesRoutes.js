@@ -6,6 +6,6 @@ const router = express.Router();
 
 // router.use(authMiddleware);
 router.route("/").get(getSales).post(createSale);
-router.route("/:id").get(getSaleById).patch(updateSale).delete(deleteSale);
+router.route("/:id").get(getSaleById).put(updateSale).delete(deleteSale);
 
 export default router;

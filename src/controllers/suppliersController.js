@@ -103,20 +103,50 @@ export const deleteSupplier = asyncHandler(async (req, res) => {
 export const getSupplierPurchases = asyncHandler(async (req, res) => {
   try {
     if (!req.params.id) {
-      res.status(400).json({ status: "error", error: "Please provide supplier id" });
+      return res.status(400).json({ status: "error", error: "Please provide supplier id" });
     }
+
     const data = await turso.execute(
-      `SELECT p.id, p.total_amount, p.date, pi.id as item_id, pi.product_id, pi.quantity, pi.price
-        FROM purchases p
-        JOIN purchases_items pi ON p.id = pi.purchase_id
+      `SELECT p.id AS purchase_id, p.total_amount, p.date AS purchase_date,
+              pi.id AS item_id, pi.product_id, pi.quantity, pi.price
+         FROM purchases p
+         LEFT JOIN purchases_items pi ON p.id = pi.purchase_id
         WHERE p.supplier_id = '${req.params.id}'`
     );
 
     if (data.rows.length === 0) {
-      res.status(404).json({ status: "error", error: "No purchases found" });
+      return res.status(404).json({ status: "error", error: "No purchases found" });
     }
-    res.json({ status: "success", data: data.rows });
-  } catch {
-    res.status(400).json({ status: "error", error: error });
+
+    const transformData = (rows) => {
+      const purchasesMap = {};
+
+      rows.forEach((row) => {
+        if (!purchasesMap[row.purchase_id]) {
+          purchasesMap[row.purchase_id] = {
+            id: row.purchase_id,
+            total_amount: row.total_amount,
+            date: row.purchase_date,
+            items: [],
+          };
+        }
+        if (row.item_id) {
+          purchasesMap[row.purchase_id].items.push({
+            id: row.item_id,
+            product_id: row.product_id,
+            quantity: row.quantity,
+            price: row.price,
+          });
+        }
+      });
+
+      return Object.values(purchasesMap);
+    };
+
+    const formattedData = transformData(data.rows);
+
+    res.json({ status: "success", data: formattedData });
+  } catch (error) {
+    res.status(400).json({ status: "error", error: error.message });
   }
 });
