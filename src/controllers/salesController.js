@@ -14,16 +14,35 @@ export const getSaleById = asyncHandler(async (req, res) => {
   if (!req.params.id) {
     res.status(400).json({ status: "error", error: "Please provide sale id" });
   }
-  const data = await turso.execute(`SELECT * FROM sales WHERE id = '${req.params.id}'`);
+  // const data = await turso.execute(`SELECT * FROM sales WHERE id = '${req.params.id}'`);
+
+  const data = await turso.execute(
+    `SELECT s.id, s.customer_id, s.total_amount, s.date, si.id as item_id, si.product_id, si.quantity, si.price
+    FROM sales s
+    JOIN sales_items si ON s.id = si.sale_id
+    WHERE s.id = '${req.params.id}'`
+  );
+  const sale = {
+    id: data.rows[0].id,
+    customer_id: data.rows[0].customer_id,
+    total_amount: data.rows[0].total_amount,
+    date: data.rows[0].date,
+    items: data.rows.map((item) => ({
+      id: item.item_id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+    })),
+  };
   if (data.rows.length === 0) {
     res.status(404).json({ status: "error", error: "Sale not found" });
   }
-  res.json({ status: "success", data: data.rows[0] });
+  res.json({ status: "success", data: sale });
 });
 
 export const createSale = asyncHandler(async (req, res) => {
   const { customer_id, total_amount, date, items } = req.body;
-
+  console.log(req.body);
   if (!customer_id || !total_amount || !date || !items) {
     res.status(400).json({ status: "error", error: "Please provide customer_id, total_amount, date and items" });
   }
@@ -66,10 +85,9 @@ export const updateSale = asyncHandler(async (req, res) => {
         UPDATE sales SET customer_id = '${customer_id}', total_amount = '${total_amount}', date = '${date}', updated_at = CURRENT_TIMESTAMP WHERE id = '${req.params.id}'
     `;
     await turso.execute(query);
-
     items.forEach(async (item) => {
       const updateQuery = `
-          UPDATE sales_items SET product_id = '${item.product_id}', quantity = '${item.quantity}', price = '${item.price}', updated_at = CURRENT_TIMESTAMP WHERE sale_id = '${item.id}'
+      UPDATE sales_items SET product_id = '${item.product_id}', quantity = '${item.quantity}', price = '${item.price}', updated_at = CURRENT_TIMESTAMP WHERE id = '${item.id}'
       `;
       await turso.execute(updateQuery);
     });
@@ -87,8 +105,6 @@ export const deleteSale = asyncHandler(async (req, res) => {
   try {
     const itemQuery = `DELETE FROM sales_items WHERE sale_id = '${req.params.id}';`;
     await turso.execute(itemQuery);
-    const query = `DELETE FROM sales WHERE id = '${req.params.id}';`;
-    await turso.execute(query);
 
     res.json({ status: "success", message: "Sale deleted" });
   } catch (error) {
